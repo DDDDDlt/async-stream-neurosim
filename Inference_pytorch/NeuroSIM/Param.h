@@ -141,6 +141,13 @@ public:
 	// 230920 update
 	double totaltile_num;
 	int sync_data_transfer;
+
+	// async stream update
+	bool asyncStreamMode;
+	double asyncStreamFrequency;
+	double asyncStreamWindow;
+	double asyncStreamJitter;
+	double asyncStreamEnergyPerPulse;
 };
 
 #endif

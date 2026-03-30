@@ -1,0 +1,17 @@
+event_rate=0.9640369897959183
+duty_cycle=0.49326085059102315
+effective_frequency=9820.184948979591
+effective_precision=12.0
+pulse_budget=302944.689198511
+snr=127212227.34823656
+adc_latency_scale=1.5503781322959724
+adc_energy_scale=1.045666512163697
+accum_latency_scale=1.2766240433673466
+accum_energy_scale=1.1741066326530611
+buffer_latency_scale=0.9600000000000001
+buffer_energy_scale=0.9555312390335
+ic_latency_scale=0.9938964132904274
+ic_energy_scale=0.8087723383755455
+leakage_scale=1.0
+latency_scale=1.351422422765297
+energy_scale=1.0223001192238177

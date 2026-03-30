@@ -16,9 +16,9 @@ from utee import hook
 from datetime import datetime
 from subprocess import call
 parser = argparse.ArgumentParser(description='PyTorch CIFAR-X Example')
-parser.add_argument('--dataset', default='cifar10', help='cifar10|cifar100|imagenet')
-parser.add_argument('--model', default='VGG8', help='VGG8|DenseNet40|ResNet18')
-parser.add_argument('--mode', default='WAGE', help='WAGE|FP')
+parser.add_argument('--dataset', default='cifar10', help='mnist|cifar10|cifar100|imagenet')
+parser.add_argument('--model', default='VGG8', help='VGG8|DenseNet40|ResNet18|StreamCNN')
+parser.add_argument('--mode', default='WAGE', help='WAGE|FP|ASYNC')
 parser.add_argument('--batch_size', type=int, default=200, help='input batch size for training (default: 64)')
 parser.add_argument('--epochs', type=int, default=200, help='number of epochs to train (default: 10)')
 parser.add_argument('--grad_scale', type=float, default=8, help='learning rate for wage delta calculation')
@@ -46,6 +46,10 @@ parser.add_argument('--t', type=float, default=0, help='retention time')
 parser.add_argument('--v', type=float, default=0, help='drift coefficient')
 parser.add_argument('--detect', type=int, default=0, help='if 1, fixed-direction drift, if 0, random drift')
 parser.add_argument('--target', type=float, default=0, help='drift target for fixed-direction drift, range 0-1')
+parser.add_argument('--stream_frequency', type=float, default=1e4, help='base async stream frequency')
+parser.add_argument('--stream_window', type=float, default=32.0, help='async observation window')
+parser.add_argument('--stream_jitter', type=float, default=0.02, help='async stream jitter')
+parser.add_argument('--stream_energy_per_pulse', type=float, default=1.0, help='relative async pulse energy scale')
 current_time = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
 
 args = parser.parse_args()
@@ -62,6 +66,11 @@ for k, v in args.__dict__.items():
 	logger('{}: {}'.format(k, v))
 logger("========================================")
 
+if args.model == 'StreamCNN' and args.subArray > 32:
+    logger('Adjusting subArray to 32 for StreamCNN floorplanning.')
+    args.subArray = 32
+    args.parallelRead = min(args.parallelRead, args.subArray)
+
 # seed
 args.cuda = torch.cuda.is_available()
 torch.manual_seed(args.seed)
@@ -69,8 +78,10 @@ if args.cuda:
 	torch.cuda.manual_seed(args.seed)
 
 # data loader and model
-assert args.dataset in ['cifar10', 'cifar100', 'imagenet'], args.dataset
-if args.dataset == 'cifar10':
+assert args.dataset in ['mnist', 'cifar10', 'cifar100', 'imagenet'], args.dataset
+if args.dataset == 'mnist':
+    train_loader, test_loader = dataset.get_mnist(batch_size=args.batch_size, num_workers=1)
+elif args.dataset == 'cifar10':
     train_loader, test_loader = dataset.get_cifar10(batch_size=args.batch_size, num_workers=1)
 elif args.dataset == 'cifar100':
     train_loader, test_loader = dataset.get_cifar100(batch_size=args.batch_size, num_workers=1)
@@ -79,7 +90,7 @@ elif args.dataset == 'imagenet':
 else:
     raise ValueError("Unknown dataset type")
     
-assert args.model in ['VGG8', 'DenseNet40', 'ResNet18'], args.model
+assert args.model in ['VGG8', 'DenseNet40', 'ResNet18', 'StreamCNN'], args.model
 if args.model == 'VGG8':
     from models import VGG
     model_path = './log/VGG8.pth'   # WAGE mode pretrained model
@@ -94,8 +105,15 @@ elif args.model == 'ResNet18':
     # model_path = './log/xxx.pth'
     # modelCF = ResNet.resnet18(args = args, logger=logger, pretrained = model_path)
     modelCF = ResNet.resnet18(args = args, logger=logger, pretrained = True)
+elif args.model == 'StreamCNN':
+    from models import StreamCNN
+    model_path = './log/StreamCNN_mnist.pth'
+    modelCF = StreamCNN.streamcnn(args=args, logger=logger, pretrained=model_path)
 else:
     raise ValueError("Unknown model type")
+
+if args.mode == 'ASYNC' and args.model != 'StreamCNN':
+    raise ValueError("ASYNC mode currently supports StreamCNN only")
 
 if args.cuda:
 	modelCF.cuda()
@@ -125,7 +143,14 @@ if args.parallelRead < args.subArray and args.cellBit > 1:
 # for data, target in test_loader:
 for i, (data, target) in enumerate(test_loader):
     if i==0:
-        hook_handle_list = hook.hardware_evaluation(modelCF,args.wl_weight,args.wl_activate,args.subArray,args.parallelRead,args.model,args.mode)
+        hook_handle_list = hook.hardware_evaluation(
+            modelCF, args.wl_weight, args.wl_activate, args.subArray, args.parallelRead, args.model, args.mode,
+            async_stream_mode=(args.mode == 'ASYNC'),
+            stream_frequency=args.stream_frequency,
+            stream_window=args.stream_window,
+            stream_jitter=args.stream_jitter,
+            stream_energy_per_pulse=args.stream_energy_per_pulse,
+        )
     indx_target = target.clone()
     if args.cuda:
         data, target = data.cuda(), target.cuda()

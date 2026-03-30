@@ -3,8 +3,49 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 import os
 
+
+def _resolve_data_root(base_root, dataset_folder):
+    candidates = []
+    if base_root:
+        candidates.append(os.path.expanduser(base_root))
+    candidates.append(os.path.expanduser('~/.cache/neurosim-datasets'))
+
+    for candidate in candidates:
+        dataset_root = os.path.join(candidate, dataset_folder)
+        try:
+            os.makedirs(dataset_root, exist_ok=True)
+            return dataset_root
+        except PermissionError:
+            continue
+
+    raise PermissionError("No writable dataset directory found for NeuroSim datasets.")
+
+
+def get_mnist(batch_size, data_root='/tmp/public_dataset/pytorch', train=True, val=True, **kwargs):
+    data_root = _resolve_data_root(data_root, 'mnist-data')
+    num_workers = kwargs.setdefault('num_workers', 1)
+    kwargs.pop('input_size', None)
+    print("Building MNIST data loader with {} workers".format(num_workers))
+    ds = []
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307,), (0.3081,)),
+    ])
+    if train:
+        train_loader = torch.utils.data.DataLoader(
+            datasets.MNIST(root=data_root, train=True, download=True, transform=transform),
+            batch_size=batch_size, shuffle=True, **kwargs)
+        ds.append(train_loader)
+    if val:
+        test_loader = torch.utils.data.DataLoader(
+            datasets.MNIST(root=data_root, train=False, download=True, transform=transform),
+            batch_size=batch_size, shuffle=False, **kwargs)
+        ds.append(test_loader)
+    ds = ds[0] if len(ds) == 1 else ds
+    return ds
+
 def get_cifar10(batch_size, data_root='/tmp/public_dataset/pytorch', train=True, val=True, **kwargs):
-    data_root = os.path.expanduser(os.path.join(data_root, 'cifar10-data'))
+    data_root = _resolve_data_root(data_root, 'cifar10-data')
     num_workers = kwargs.setdefault('num_workers', 1)
     kwargs.pop('input_size', None)
     print("Building CIFAR-10 data loader with {} workers".format(num_workers))
@@ -37,7 +78,7 @@ def get_cifar10(batch_size, data_root='/tmp/public_dataset/pytorch', train=True,
     return ds
 
 def get_cifar100(batch_size, data_root='/tmp/public_dataset/pytorch', train=True, val=True, **kwargs):
-    data_root = os.path.expanduser(os.path.join(data_root, 'cifar100-data'))
+    data_root = _resolve_data_root(data_root, 'cifar100-data')
     num_workers = kwargs.setdefault('num_workers', 1)
     kwargs.pop('input_size', None)
     print("Building CIFAR-100 data loader with {} workers".format(num_workers))

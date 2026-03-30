@@ -60,6 +60,150 @@ using namespace std;
 
 vector<vector<double> > getNetStructure(const string &inputfile);
 
+struct AsyncStreamLayerStats {
+    bool valid = false;
+    double eventRate = 1.0;
+    double dutyCycle = 0.5;
+    double effectiveFrequency = 1.0;
+    double effectivePrecision = 8.0;
+    double pulseBudget = 1.0;
+    double snr = 1.0;
+    double adcLatencyScale = 1.0;
+    double adcEnergyScale = 1.0;
+    double accumLatencyScale = 1.0;
+    double accumEnergyScale = 1.0;
+    double bufferLatencyScale = 1.0;
+    double bufferEnergyScale = 1.0;
+    double icLatencyScale = 1.0;
+    double icEnergyScale = 1.0;
+    double leakageScale = 1.0;
+    double latencyScale = 1.0;
+    double energyScale = 1.0;
+};
+
+AsyncStreamLayerStats loadAsyncStreamLayerStats(const string &inputfile) {
+    AsyncStreamLayerStats stats;
+    if (inputfile.empty()) {
+        return stats;
+    }
+
+    ifstream infile(inputfile.c_str());
+    if (!infile.good()) {
+        return stats;
+    }
+
+    string line;
+    while (getline(infile, line, '\n')) {
+        size_t sep = line.find('=');
+        if (sep == string::npos) {
+            continue;
+        }
+        string key = line.substr(0, sep);
+        double value = atof(line.substr(sep + 1).c_str());
+        if (key == "event_rate") stats.eventRate = value;
+        else if (key == "duty_cycle") stats.dutyCycle = value;
+        else if (key == "effective_frequency") stats.effectiveFrequency = value;
+        else if (key == "effective_precision") stats.effectivePrecision = value;
+        else if (key == "pulse_budget") stats.pulseBudget = value;
+        else if (key == "snr") stats.snr = value;
+        else if (key == "adc_latency_scale") stats.adcLatencyScale = value;
+        else if (key == "adc_energy_scale") stats.adcEnergyScale = value;
+        else if (key == "accum_latency_scale") stats.accumLatencyScale = value;
+        else if (key == "accum_energy_scale") stats.accumEnergyScale = value;
+        else if (key == "buffer_latency_scale") stats.bufferLatencyScale = value;
+        else if (key == "buffer_energy_scale") stats.bufferEnergyScale = value;
+        else if (key == "ic_latency_scale") stats.icLatencyScale = value;
+        else if (key == "ic_energy_scale") stats.icEnergyScale = value;
+        else if (key == "leakage_scale") stats.leakageScale = value;
+        else if (key == "latency_scale") stats.latencyScale = value;
+        else if (key == "energy_scale") stats.energyScale = value;
+    }
+    stats.valid = true;
+    return stats;
+}
+
+double getAsyncLatencyScale(const AsyncStreamLayerStats &stats, double baseInputPrecision, double baseFrequency) {
+    if (!stats.valid) {
+        return 1.0;
+    }
+    double precisionPenalty = MAX(0.5, stats.effectivePrecision / MAX(baseInputPrecision, 1.0));
+    double frequencyGain = MAX(stats.effectiveFrequency / MAX(baseFrequency, 1.0), 0.1);
+    return MAX(0.1, stats.latencyScale * precisionPenalty / frequencyGain);
+}
+
+double getAsyncEnergyScale(const AsyncStreamLayerStats &stats, double baseInputPrecision, double baseFrequency, double pulseEnergyScale) {
+    if (!stats.valid) {
+        return 1.0;
+    }
+    double precisionPenalty = MAX(0.5, stats.effectivePrecision / MAX(baseInputPrecision, 1.0));
+    double frequencyFactor = MAX(stats.effectiveFrequency / MAX(baseFrequency, 1.0), 0.1);
+    double activityFactor = 0.35 + 0.65 * MAX(stats.eventRate, 0.05);
+    return MAX(0.05, stats.energyScale * activityFactor * precisionPenalty * frequencyFactor * pulseEnergyScale);
+}
+
+void applyAsyncStreamScaling(double latencyScale, double energyScale,
+        double *readLatency, double *readDynamicEnergy,
+        double *bufferLatency, double *bufferDynamicEnergy,
+        double *icLatency, double *icDynamicEnergy,
+        double *coreLatencyADC, double *coreLatencyAccum, double *coreLatencyOther,
+        double *coreEnergyADC, double *coreEnergyAccum, double *coreEnergyOther) {
+    *readLatency *= latencyScale;
+    *bufferLatency *= latencyScale;
+    *icLatency *= latencyScale;
+    *coreLatencyADC *= latencyScale;
+    *coreLatencyAccum *= latencyScale;
+    *coreLatencyOther *= latencyScale;
+
+    *readDynamicEnergy *= energyScale;
+    *bufferDynamicEnergy *= energyScale;
+    *icDynamicEnergy *= energyScale;
+    *coreEnergyADC *= energyScale;
+    *coreEnergyAccum *= energyScale;
+    *coreEnergyOther *= energyScale;
+}
+
+void applyAsyncStreamCircuitScaling(const AsyncStreamLayerStats &stats, double pulseEnergyScale,
+        double *readLatency, double *readDynamicEnergy,
+        double *bufferLatency, double *bufferDynamicEnergy,
+        double *icLatency, double *icDynamicEnergy,
+        double *coreLatencyADC, double *coreLatencyAccum, double *coreLatencyOther,
+        double *coreEnergyADC, double *coreEnergyAccum, double *coreEnergyOther) {
+    if (!stats.valid) {
+        return;
+    }
+
+    *coreLatencyADC *= stats.adcLatencyScale;
+    *coreLatencyAccum *= stats.accumLatencyScale;
+    *coreLatencyOther *= 0.5 * (stats.bufferLatencyScale + stats.icLatencyScale);
+    *bufferLatency *= stats.bufferLatencyScale;
+    *icLatency *= stats.icLatencyScale;
+
+    *coreEnergyADC *= stats.adcEnergyScale * pulseEnergyScale;
+    *coreEnergyAccum *= stats.accumEnergyScale * pulseEnergyScale;
+    *coreEnergyOther *= 0.5 * (stats.bufferEnergyScale + stats.icEnergyScale) * pulseEnergyScale;
+    *bufferDynamicEnergy *= stats.bufferEnergyScale * pulseEnergyScale;
+    *icDynamicEnergy *= stats.icEnergyScale * pulseEnergyScale;
+
+    *readLatency = *coreLatencyADC + *coreLatencyAccum + *coreLatencyOther;
+    *readDynamicEnergy = *coreEnergyADC + *coreEnergyAccum + *coreEnergyOther;
+}
+
+void printAsyncStreamStats(const AsyncStreamLayerStats &stats) {
+    if (!stats.valid) {
+        return;
+    }
+    cout << "----------- Async Stream Event Rate : " << stats.eventRate << endl;
+    cout << "----------- Async Stream Duty Cycle : " << stats.dutyCycle << endl;
+    cout << "----------- Async Stream Frequency : " << stats.effectiveFrequency << " Hz" << endl;
+    cout << "----------- Async Stream ENOB : " << stats.effectivePrecision << " bit" << endl;
+    cout << "----------- Async Stream Pulse Budget : " << stats.pulseBudget << endl;
+    cout << "----------- Async Stream ADC latency/energy scale : " << stats.adcLatencyScale << " / " << stats.adcEnergyScale << endl;
+    cout << "----------- Async Stream Accum latency/energy scale : " << stats.accumLatencyScale << " / " << stats.accumEnergyScale << endl;
+    cout << "----------- Async Stream Buffer latency/energy scale : " << stats.bufferLatencyScale << " / " << stats.bufferEnergyScale << endl;
+    cout << "----------- Async Stream IC latency/energy scale : " << stats.icLatencyScale << " / " << stats.icEnergyScale << endl;
+    cout << "----------- Async Stream Leakage scale : " << stats.leakageScale << endl;
+}
+
 int main(int argc, char * argv[]) {   
 
     auto start = chrono::high_resolution_clock::now();
@@ -69,6 +213,35 @@ int main(int argc, char * argv[]) {
     vector<vector<double> > netStructure;
     netStructure = getNetStructure(argv[1]);
     
+    int numLayer = netStructure.size();
+    int layerArgStart = 6;
+    int layerArgStride = 2;
+
+    if ((argc - 11) >= 0 && (argc - 11) % 3 == 0 && ((argc - 11) / 3 == numLayer)) {
+        param->asyncStreamMode = atoi(argv[6]) != 0;
+        param->asyncStreamFrequency = atof(argv[7]);
+        param->asyncStreamWindow = atof(argv[8]);
+        param->asyncStreamJitter = atof(argv[9]);
+        param->asyncStreamEnergyPerPulse = atof(argv[10]);
+        layerArgStart = 11;
+        layerArgStride = 3;
+    } else {
+        param->asyncStreamMode = false;
+    }
+
+    auto weightFileForLayer = [&](int layerIdx) -> const char * {
+        return argv[layerArgStart + layerIdx * layerArgStride];
+    };
+    auto inputFileForLayer = [&](int layerIdx) -> const char * {
+        return argv[layerArgStart + layerIdx * layerArgStride + 1];
+    };
+    auto metadataFileForLayer = [&](int layerIdx) -> string {
+        if (layerArgStride < 3) {
+            return "";
+        }
+        return string(argv[layerArgStart + layerIdx * layerArgStride + 2]);
+    };
+
     // define weight/input/memory precision from wrapper
     param->synapseBit = atoi(argv[2]);              // precision of synapse weight
     param->numBitInput = atoi(argv[3]);             // precision of input neural activation
@@ -286,11 +459,15 @@ int main(int argc, char * argv[]) {
         // calculate clkFreq
         for (int i=0; i<netStructure.size(); i++) {     
             // Anni update: add &tileLeakageSRAMInUse
-            ChipCalculatePerformance(inputParameter, tech, cell, i, argv[2*i+6], argv[2*i+6], argv[2*i+7], netStructure[i][6],
+            ChipCalculatePerformance(inputParameter, tech, cell, i, weightFileForLayer(i), weightFileForLayer(i), inputFileForLayer(i), netStructure[i][6],
                         netStructure, markNM, numTileEachLayer, utilizationEachLayer, speedUpEachLayer, tileLocaEachLayer,
                         numPENM, desiredPESizeNM, desiredTileSizeCM, desiredPESizeCM, CMTileheight, CMTilewidth, NMTileheight, NMTilewidth,
                         &layerReadLatency, &layerReadDynamicEnergy, &tileLeakage, &tileLeakageSRAMInUse, &layerbufferLatency, &layerbufferDynamicEnergy, &layericLatency, &layericDynamicEnergy,
                         &coreLatencyADC, &coreLatencyAccum, &coreLatencyOther, &coreEnergyADC, &coreEnergyAccum, &coreEnergyOther, true, &layerclkPeriod);
+            if (param->asyncStreamMode) {
+                AsyncStreamLayerStats asyncStats = loadAsyncStreamLayerStats(metadataFileForLayer(i));
+                layerclkPeriod *= getAsyncLatencyScale(asyncStats, param->numBitInput, param->asyncStreamFrequency);
+            }
             if(clkPeriod < layerclkPeriod){
                 clkPeriod = layerclkPeriod;
             }           
@@ -307,8 +484,9 @@ int main(int argc, char * argv[]) {
         // show the detailed hardware performance for each layer
         for (int i=0; i<netStructure.size(); i++) {
             cout << "-------------------- Estimation of Layer " << i+1 << " ----------------------" << endl;
+            AsyncStreamLayerStats asyncStats;
             // Anni update: add &tileLeakageSRAMInUse
-            ChipCalculatePerformance(inputParameter, tech, cell, i, argv[2*i+6], argv[2*i+6], argv[2*i+7], netStructure[i][6],
+            ChipCalculatePerformance(inputParameter, tech, cell, i, weightFileForLayer(i), weightFileForLayer(i), inputFileForLayer(i), netStructure[i][6],
                         netStructure, markNM, numTileEachLayer, utilizationEachLayer, speedUpEachLayer, tileLocaEachLayer,
                         numPENM, desiredPESizeNM, desiredTileSizeCM, desiredPESizeCM, CMTileheight, CMTilewidth, NMTileheight, NMTilewidth,
                         &layerReadLatency, &layerReadDynamicEnergy, &tileLeakage, &tileLeakageSRAMInUse, &layerbufferLatency, &layerbufferDynamicEnergy, &layericLatency, &layericDynamicEnergy,
@@ -321,6 +499,15 @@ int main(int argc, char * argv[]) {
                 coreLatencyAccum *= clkPeriod;
                 coreLatencyOther *= clkPeriod;
             }
+            if (param->asyncStreamMode) {
+                asyncStats = loadAsyncStreamLayerStats(metadataFileForLayer(i));
+                applyAsyncStreamCircuitScaling(asyncStats, param->asyncStreamEnergyPerPulse,
+                    &layerReadLatency, &layerReadDynamicEnergy,
+                    &layerbufferLatency, &layerbufferDynamicEnergy,
+                    &layericLatency, &layericDynamicEnergy,
+                    &coreLatencyADC, &coreLatencyAccum, &coreLatencyOther,
+                    &coreEnergyADC, &coreEnergyAccum, &coreEnergyOther);
+            }
             
             double numTileOtherLayer = 0;
             double layerLeakageEnergy = 0;      
@@ -331,6 +518,9 @@ int main(int argc, char * argv[]) {
             }
             // Anni update: other layer tiles and partial this layer tiles are in leakage
             layerLeakageEnergy = (numTileOtherLayer * tileLeakage + numTileEachLayer[0][i] * numTileEachLayer[1][i] * tileLeakageSRAMInUse) * layerReadLatency;
+            if (param->asyncStreamMode && asyncStats.valid) {
+                layerLeakageEnergy *= asyncStats.leakageScale;
+            }
             
             cout << "layer" << i+1 << "'s readLatency is: " << layerReadLatency*1e9 << "ns" << endl;
             cout << "layer" << i+1 << "'s readDynamicEnergy is: " << layerReadDynamicEnergy*1e12 << "pJ" << endl;
@@ -351,6 +541,9 @@ int main(int argc, char * argv[]) {
             cout << "----------- ADC (or S/As and precharger for SRAM) readDynamicEnergy is : " << coreEnergyADC*1e12 << "pJ" << endl;
             cout << "----------- Accumulation Circuits (subarray level: adders, shiftAdds; PE/Tile/Global level: accumulation units) readDynamicEnergy is : " << coreEnergyAccum*1e12 << "pJ" << endl;
             cout << "----------- Other Peripheries (e.g. decoders, mux, switchmatrix, buffers, IC, pooling and activation units) readDynamicEnergy is : " << coreEnergyOther*1e12 << "pJ" << endl;
+            if (param->asyncStreamMode) {
+                printAsyncStreamStats(asyncStats);
+            }
             cout << endl;
             cout << "************************ Breakdown of Latency and Dynamic Energy *************************" << endl;
             cout << endl;
@@ -390,10 +583,13 @@ int main(int argc, char * argv[]) {
         vector<double> coreEnergyAccumPerLayer;
         vector<double> coreLatencyOtherPerLayer;
         vector<double> coreEnergyOtherPerLayer;
+        vector<double> leakageScalePerLayer;
+        vector<AsyncStreamLayerStats> asyncStatsPerLayer;
         
         for (int i=0; i<netStructure.size(); i++) {
+            AsyncStreamLayerStats asyncStats;
             // Anni update: add &tileLeakageSRAMInUse
-            ChipCalculatePerformance(inputParameter, tech, cell, i, argv[2*i+6], argv[2*i+6], argv[2*i+7], netStructure[i][6],
+            ChipCalculatePerformance(inputParameter, tech, cell, i, weightFileForLayer(i), weightFileForLayer(i), inputFileForLayer(i), netStructure[i][6],
                         netStructure, markNM, numTileEachLayer, utilizationEachLayer, speedUpEachLayer, tileLocaEachLayer,
                         numPENM, desiredPESizeNM, desiredTileSizeCM, desiredPESizeCM, CMTileheight, CMTilewidth, NMTileheight, NMTilewidth,
                         &layerReadLatency, &layerReadDynamicEnergy, &tileLeakage, &tileLeakageSRAMInUse, &layerbufferLatency, &layerbufferDynamicEnergy, &layericLatency, &layericDynamicEnergy,
@@ -406,6 +602,15 @@ int main(int argc, char * argv[]) {
                 coreLatencyAccum *= clkPeriod;
                 coreLatencyOther *= clkPeriod;
             }           
+            if (param->asyncStreamMode) {
+                asyncStats = loadAsyncStreamLayerStats(metadataFileForLayer(i));
+                applyAsyncStreamCircuitScaling(asyncStats, param->asyncStreamEnergyPerPulse,
+                    &layerReadLatency, &layerReadDynamicEnergy,
+                    &layerbufferLatency, &layerbufferDynamicEnergy,
+                    &layericLatency, &layericDynamicEnergy,
+                    &coreLatencyADC, &coreLatencyAccum, &coreLatencyOther,
+                    &coreEnergyADC, &coreEnergyAccum, &coreEnergyOther);
+            }
             
             systemClock = MAX(systemClock, layerReadLatency);
             
@@ -424,6 +629,8 @@ int main(int argc, char * argv[]) {
             coreEnergyAccumPerLayer.push_back(coreEnergyAccum);
             coreLatencyOtherPerLayer.push_back(coreLatencyOther);
             coreEnergyOtherPerLayer.push_back(coreEnergyOther);
+            leakageScalePerLayer.push_back((param->asyncStreamMode && asyncStats.valid) ? asyncStats.leakageScale : 1.0);
+            asyncStatsPerLayer.push_back(asyncStats);
         }
         
         for (int i=0; i<netStructure.size(); i++) {
@@ -449,6 +656,9 @@ int main(int argc, char * argv[]) {
             cout << "----------- ADC (or S/As and precharger for SRAM) readDynamicEnergy is : " << coreEnergyADCPerLayer[i]*1e12 << "pJ" << endl;
             cout << "----------- Accumulation Circuits (subarray level: adders, shiftAdds; PE/Tile/Global level: accumulation units) readDynamicEnergy is : " << coreEnergyAccumPerLayer[i]*1e12 << "pJ" << endl;
             cout << "----------- Other Peripheries (e.g. decoders, mux, switchmatrix, buffers, IC, pooling and activation units) readDynamicEnergy is : " << coreEnergyOtherPerLayer[i]*1e12 << "pJ" << endl;
+            if (param->asyncStreamMode) {
+                printAsyncStreamStats(asyncStatsPerLayer[i]);
+            }
             cout << endl;
             cout << "************************ Breakdown of Latency and Dynamic Energy *************************" << endl;
             cout << endl;
@@ -456,7 +666,7 @@ int main(int argc, char * argv[]) {
             chipReadLatency = systemClock;
             chipReadDynamicEnergy += readDynamicEnergyPerLayer[i];
             // Anni update: average leakage power considering read latency
-            chipLeakageEnergy += leakagePowerPerLayer[i] * systemClock;
+            chipLeakageEnergy += leakagePowerPerLayer[i] * systemClock * leakageScalePerLayer[i];
             chipLeakage += leakagePowerPerLayer[i];
             chipbufferLatency = MAX(chipbufferLatency, bufferLatencyPerLayer[i]);
             chipbufferReadDynamicEnergy += bufferEnergyPerLayer[i];

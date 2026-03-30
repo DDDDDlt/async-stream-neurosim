@@ -133,6 +133,32 @@ python inference.py --dataset cifar10 --model DenseNet40 --mode WAGE --inference
 python inference.py --dataset imagenet --model ResNet18 --mode FP --inference 1 --onoffratio 100
 ```
 
+### 11. Experimental async stream-based CIM prototype
+This repository now includes a lightweight asynchronous stream-based inference prototype for simple CNN evaluation.
+
+Key points:
+```
+1. New model: StreamCNN
+2. New dataset option: mnist
+3. New mode: ASYNC
+4. This is a first-order architecture extension intended for early exploration.
+5. The Python wrapper estimates stream activity, frequency, jitter and effective precision per layer.
+6. The C++ NeuroSIM backend consumes per-layer metadata and rescales latency/energy accordingly.
+```
+
+Example:
+```
+cd Inference_pytorch
+python inference.py --dataset mnist --model StreamCNN --mode ASYNC --inference 1 --stream_frequency 1e4 --stream_window 32 --stream_jitter 0.02
+```
+
+Notes:
+```
+1. Current ASYNC support is intentionally minimal and focused on simple CNNs.
+2. StreamCNN uses an internal floorplanning safeguard and will clamp subArray to 32 when needed.
+3. The async-stream backend is a compact behavioral approximation, not a full transistor-accurate asynchronous circuit simulator.
+```
+
 <br/>
 
 **_For estimation of on-chip training accelerators, please visit released V2.1 [DNN+NeuroSim V2.1](https://github.com/neurosim/DNN_NeuroSim_V2.1)_**

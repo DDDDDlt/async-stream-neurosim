@@ -206,6 +206,11 @@ Param::Param() {
 	// 230920 update
 
 	sync_data_transfer=0;
+	asyncStreamMode = false;
+	asyncStreamFrequency = 1e4;
+	asyncStreamWindow = 32;
+	asyncStreamJitter = 0.02;
+	asyncStreamEnergyPerPulse = 1.0;
 
 	/*** initialize operationMode as default ***/ 
 	
