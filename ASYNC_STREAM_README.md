@@ -16,6 +16,7 @@ This is intended for early-stage architecture exploration, not signoff-level cir
 The prototype introduces a new inference path for simple CNN evaluation:
 
 - New inference mode: `ASYNC`
+- New comparison mode: `STREAM_BASELINE`
 - New dataset option: `mnist`
 - New simple network: `StreamCNN`
 - New Python-side stream behavior model
@@ -98,6 +99,7 @@ The prototype is intentionally limited:
 - Supported async model: `StreamCNN`
 - Supported async dataset: `mnist`
 - Supported mode: `ASYNC`
+- Supported comparison baseline: `STREAM_BASELINE`
 
 This is a first-order behavioral extension. It is not a transistor-accurate asynchronous circuit simulator.
 
@@ -128,6 +130,22 @@ python train_streamcnn.py --epochs 10 --batch_size 128 --lr 1e-3
 ```bash
 python inference.py --dataset mnist --model StreamCNN --mode ASYNC --inference 1 --stream_frequency 1e4 --stream_window 32 --stream_jitter 0.02
 ```
+
+### 2b. Run the traditional-style baseline with the same StreamCNN
+
+```bash
+python inference.py --dataset mnist --model StreamCNN --mode STREAM_BASELINE --inference 1 --stream_frequency 1e4 --stream_window 32 --stream_jitter 0.02
+```
+
+In `STREAM_BASELINE`, the same trained `StreamCNN` weights are used, but the async input perturbation and C++ async hardware scaling are disabled. This gives a cleaner side-by-side comparison against `ASYNC`.
+
+### 2c. Run a one-command comparison
+
+```bash
+python compare_stream_modes.py --stream_frequency 1e4 --stream_window 32 --stream_jitter 0.02
+```
+
+This script runs `STREAM_BASELINE` and `ASYNC` back to back, then prints a compact table for accuracy, latency, energy, efficiency, and throughput.
 
 ### 3. Inspect outputs
 
@@ -198,6 +216,67 @@ python inference.py --dataset mnist --model StreamCNN --mode ASYNC --inference 1
   - lower event activity can also increase the time needed to accumulate enough evidence
 
 These values should be treated as architecture-exploration results rather than final circuit signoff numbers.
+
+## Baseline vs Async Comparison
+
+To make the comparison cleaner, the repository now also supports:
+
+- `STREAM_BASELINE`
+  - Uses the same trained `StreamCNN` weights, but disables async input perturbation and disables C++ async hardware scaling.
+- `ASYNC`
+  - Uses the same network and weights, but enables stream-stat extraction and module-level hardware scaling.
+
+The following result was obtained with:
+
+```bash
+python compare_stream_modes.py --stream_frequency 1e4 --stream_window 32 --stream_jitter 0.02
+```
+
+### Side-by-side result
+
+| Metric | STREAM_BASELINE | ASYNC | Delta |
+| --- | ---: | ---: | ---: |
+| Accuracy (%) | 99.00 | 99.00 | +0.00% |
+| Test loss | 0.0471 | 0.0472 | +0.0001 |
+| Chip clock period (ns) | 1.9998 | 197.7640 | +9789.04% |
+| Pipeline latency / image (ns) | 15513.4 | 1.80541e+06 | +11537.75% |
+| Read dynamic energy (pJ) | 156376 | 113808 | -27.22% |
+| Leakage energy (pJ) | 235.529 | 25087.4 | +10551.51% |
+| Energy efficiency (TOPS/W) | 2.90346 | 3.27379 | +12.75% |
+| Throughput (FPS) | 64460.3 | 553.892 | -99.14% |
+
+### What this comparison means
+
+- The software-side accuracy is essentially unchanged, so the current async approximation does not noticeably damage `MNIST` inference quality for this small model.
+- The main hardware-side gain is lower read dynamic energy, which improves `TOPS/W`.
+- The main hardware-side penalty is much longer effective time scale, which hurts throughput and strongly increases leakage energy.
+
+### Why this happens in the current prototype
+
+- In lower-activity layers, the async metadata reduces several dynamic costs, especially ADC, buffer, interconnect, and accumulation energy.
+- At the same time, the current implementation also propagates the async stream timing into the effective chip-level clock / cycle model.
+- Once the effective time scale becomes much longer, total latency increases significantly.
+- Leakage energy is computed over a much longer execution time, so it also increases strongly even if leakage power itself does not increase much.
+
+### Layer-level interpretation
+
+- `Layer 1` has very high event activity (`event_rate ~= 0.964`), so it behaves relatively close to the baseline case and does not gain much dynamic-energy reduction.
+- `Layer 2` has much lower event activity (`event_rate ~= 0.163`), so its dynamic energy drops much more clearly; this is the most representative async-saving layer in the current run.
+- `Layer 3` and `Layer 4` also show reduced dynamic cost, but the timing penalty is still visible.
+
+### Practical takeaway
+
+The current prototype already demonstrates a meaningful first-order async trade-off:
+
+- lower event activity can reduce dynamic energy
+- preserving accuracy is possible with the current `StreamCNN` setup
+- if async timing is allowed to stretch the global execution time too aggressively, throughput and leakage can become much worse
+
+So this version should be interpreted as:
+
+- a useful architecture-level exploratory model
+- not yet a balanced final hardware model
+- a good starting point for future refinement such as fixed global clock comparison or milder async timing propagation
 
 ## Output Artifacts
 

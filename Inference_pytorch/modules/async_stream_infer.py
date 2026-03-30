@@ -10,7 +10,7 @@ class AsyncStreamConv2d(nn.Conv2d):
                  dilation=1, groups=1, bias=False, logger=None, wl_input=8,
                  wl_weight=8, inference=0, stream_frequency=1e4,
                  stream_window=32.0, stream_jitter=0.02, stream_min_precision=4.0,
-                 stream_max_precision=12.0, name="AsyncConv"):
+                 stream_max_precision=12.0, enable_async_stream=True, name="AsyncConv"):
         super(AsyncStreamConv2d, self).__init__(
             in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias
         )
@@ -23,6 +23,7 @@ class AsyncStreamConv2d(nn.Conv2d):
         self.stream_jitter = stream_jitter
         self.stream_min_precision = stream_min_precision
         self.stream_max_precision = stream_max_precision
+        self.enable_async_stream = enable_async_stream
         self.name = name
         self.last_stream_stats = None
 
@@ -30,6 +31,12 @@ class AsyncStreamConv2d(nn.Conv2d):
         if not self.inference:
             self.last_stream_stats = None
             return F.conv2d(input, self.weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
+
+        if not self.enable_async_stream:
+            self.last_stream_stats = None
+            quant_input = async_stream.quantize_tensor(input, self.wl_input)
+            quant_weight = async_stream.quantize_tensor(self.weight, self.wl_weight)
+            return F.conv2d(quant_input, quant_weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
 
         stats = async_stream.compute_stream_stats(
             input, self.stream_frequency, self.stream_window, self.stream_jitter,
@@ -47,7 +54,7 @@ class AsyncStreamLinear(nn.Linear):
     def __init__(self, in_features, out_features, bias=False, logger=None,
                  wl_input=8, wl_weight=8, inference=0, stream_frequency=1e4,
                  stream_window=32.0, stream_jitter=0.02, stream_min_precision=4.0,
-                 stream_max_precision=12.0, name="AsyncLinear"):
+                 stream_max_precision=12.0, enable_async_stream=True, name="AsyncLinear"):
         super(AsyncStreamLinear, self).__init__(in_features, out_features, bias)
         self.logger = logger
         self.wl_input = wl_input
@@ -58,6 +65,7 @@ class AsyncStreamLinear(nn.Linear):
         self.stream_jitter = stream_jitter
         self.stream_min_precision = stream_min_precision
         self.stream_max_precision = stream_max_precision
+        self.enable_async_stream = enable_async_stream
         self.name = name
         self.last_stream_stats = None
 
@@ -65,6 +73,12 @@ class AsyncStreamLinear(nn.Linear):
         if not self.inference:
             self.last_stream_stats = None
             return F.linear(input, self.weight, self.bias)
+
+        if not self.enable_async_stream:
+            self.last_stream_stats = None
+            quant_input = async_stream.quantize_tensor(input, self.wl_input)
+            quant_weight = async_stream.quantize_tensor(self.weight, self.wl_weight)
+            return F.linear(quant_input, quant_weight, self.bias)
 
         stats = async_stream.compute_stream_stats(
             input, self.stream_frequency, self.stream_window, self.stream_jitter,

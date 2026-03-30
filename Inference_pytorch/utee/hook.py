@@ -136,7 +136,7 @@ def hardware_evaluation(model, wl_weight, wl_activation, subArray, parallelRead,
                         stream_jitter=0.02, stream_energy_per_pulse=1.0):
     global model_n, FP, ASYNC_STREAM, ASYNC_STREAM_FREQUENCY, ASYNC_STREAM_WINDOW, ASYNC_STREAM_JITTER, ASYNC_STREAM_ENERGY_PER_PULSE
     model_n = model_name
-    FP = 1 if mode in ('FP', 'ASYNC') else 0
+    FP = 1 if mode in ('FP', 'ASYNC', 'STREAM_BASELINE') else 0
     ASYNC_STREAM = async_stream_mode
     ASYNC_STREAM_FREQUENCY = stream_frequency
     ASYNC_STREAM_WINDOW = stream_window

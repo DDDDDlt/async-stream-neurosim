@@ -8,12 +8,13 @@ from modules.async_stream_infer import AsyncStreamConv2d, AsyncStreamLinear
 class StreamCNN(nn.Module):
     def __init__(self, args, logger):
         super(StreamCNN, self).__init__()
+        enable_async_stream = (getattr(args, "mode", "ASYNC") == "ASYNC")
         self.features = nn.Sequential(
             AsyncStreamConv2d(
                 1, 8, kernel_size=3, logger=logger, wl_input=args.wl_activate,
                 wl_weight=args.wl_weight, inference=args.inference,
                 stream_frequency=args.stream_frequency, stream_window=args.stream_window,
-                stream_jitter=args.stream_jitter, name="Conv0_"
+                stream_jitter=args.stream_jitter, enable_async_stream=enable_async_stream, name="Conv0_"
             ),
             nn.ReLU(),
             nn.MaxPool2d(2),
@@ -21,7 +22,7 @@ class StreamCNN(nn.Module):
                 8, 16, kernel_size=3, logger=logger, wl_input=args.wl_activate,
                 wl_weight=args.wl_weight, inference=args.inference,
                 stream_frequency=args.stream_frequency, stream_window=args.stream_window,
-                stream_jitter=args.stream_jitter, name="Conv1_"
+                stream_jitter=args.stream_jitter, enable_async_stream=enable_async_stream, name="Conv1_"
             ),
             nn.ReLU(),
             nn.MaxPool2d(2),
@@ -31,14 +32,14 @@ class StreamCNN(nn.Module):
                 16 * 5 * 5, 64, logger=logger, wl_input=args.wl_activate,
                 wl_weight=args.wl_weight, inference=args.inference,
                 stream_frequency=args.stream_frequency, stream_window=args.stream_window,
-                stream_jitter=args.stream_jitter, name="FC0_"
+                stream_jitter=args.stream_jitter, enable_async_stream=enable_async_stream, name="FC0_"
             ),
             nn.ReLU(),
             AsyncStreamLinear(
                 64, 10, logger=logger, wl_input=args.wl_activate,
                 wl_weight=args.wl_weight, inference=args.inference,
                 stream_frequency=args.stream_frequency, stream_window=args.stream_window,
-                stream_jitter=args.stream_jitter, name="FC1_"
+                stream_jitter=args.stream_jitter, enable_async_stream=enable_async_stream, name="FC1_"
             ),
         )
 

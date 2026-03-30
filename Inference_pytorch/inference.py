@@ -18,7 +18,7 @@ from subprocess import call
 parser = argparse.ArgumentParser(description='PyTorch CIFAR-X Example')
 parser.add_argument('--dataset', default='cifar10', help='mnist|cifar10|cifar100|imagenet')
 parser.add_argument('--model', default='VGG8', help='VGG8|DenseNet40|ResNet18|StreamCNN')
-parser.add_argument('--mode', default='WAGE', help='WAGE|FP|ASYNC')
+parser.add_argument('--mode', default='WAGE', help='WAGE|FP|ASYNC|STREAM_BASELINE')
 parser.add_argument('--batch_size', type=int, default=200, help='input batch size for training (default: 64)')
 parser.add_argument('--epochs', type=int, default=200, help='number of epochs to train (default: 10)')
 parser.add_argument('--grad_scale', type=float, default=8, help='learning rate for wage delta calculation')
@@ -112,8 +112,8 @@ elif args.model == 'StreamCNN':
 else:
     raise ValueError("Unknown model type")
 
-if args.mode == 'ASYNC' and args.model != 'StreamCNN':
-    raise ValueError("ASYNC mode currently supports StreamCNN only")
+if args.mode in ('ASYNC', 'STREAM_BASELINE') and args.model != 'StreamCNN':
+    raise ValueError(args.mode + " mode currently supports StreamCNN only")
 
 if args.cuda:
 	modelCF.cuda()
