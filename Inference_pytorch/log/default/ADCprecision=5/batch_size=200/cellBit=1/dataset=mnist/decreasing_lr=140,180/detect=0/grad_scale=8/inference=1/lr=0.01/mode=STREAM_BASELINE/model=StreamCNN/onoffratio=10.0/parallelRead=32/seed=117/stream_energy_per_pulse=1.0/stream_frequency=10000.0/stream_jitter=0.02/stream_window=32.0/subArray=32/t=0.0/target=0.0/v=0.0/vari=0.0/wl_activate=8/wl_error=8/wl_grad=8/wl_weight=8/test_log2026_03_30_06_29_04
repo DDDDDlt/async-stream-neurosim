@@ -1,0 +1,34 @@
+=================FLAGS==================
+dataset: mnist
+model: StreamCNN
+mode: STREAM_BASELINE
+batch_size: 200
+epochs: 200
+grad_scale: 8
+seed: 117
+log_interval: 100
+test_interval: 1
+logdir: /home/liangtaodai/dailt_workplace/NeuroSim/DNN_NeuroSim_V1.4/Inference_pytorch/log/default/ADCprecision=5/batch_size=200/cellBit=1/dataset=mnist/decreasing_lr=140,180/detect=0/grad_scale=8/inference=1/lr=0.01/mode=STREAM_BASELINE/model=StreamCNN/onoffratio=10.0/parallelRead=32/seed=117/stream_energy_per_pulse=1.0/stream_frequency=10000.0/stream_jitter=0.02/stream_window=32.0/subArray=32/t=0.0/target=0.0/v=0.0/vari=0.0/wl_activate=8/wl_error=8/wl_grad=8/wl_weight=8
+lr: 0.01
+decreasing_lr: 140,180
+wl_weight: 8
+wl_grad: 8
+wl_activate: 8
+wl_error: 8
+inference: 1
+subArray: 32
+parallelRead: 32
+ADCprecision: 5
+cellBit: 1
+onoffratio: 10.0
+vari: 0.0
+t: 0.0
+v: 0.0
+detect: 0
+target: 0.0
+stream_frequency: 10000.0
+stream_window: 32.0
+stream_jitter: 0.02
+stream_energy_per_pulse: 1.0
+========================================
+Test set: Average loss: 0.0471, Accuracy: 9851/10000 (99%)

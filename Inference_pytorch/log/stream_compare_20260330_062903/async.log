@@ -1,0 +1,254 @@
+=================FLAGS==================
+dataset: mnist
+model: StreamCNN
+mode: ASYNC
+batch_size: 200
+epochs: 200
+grad_scale: 8
+seed: 117
+log_interval: 100
+test_interval: 1
+logdir: /home/liangtaodai/dailt_workplace/NeuroSim/DNN_NeuroSim_V1.4/Inference_pytorch/log/default/ADCprecision=5/batch_size=200/cellBit=1/dataset=mnist/decreasing_lr=140,180/detect=0/grad_scale=8/inference=1/lr=0.01/mode=ASYNC/model=StreamCNN/onoffratio=10.0/parallelRead=32/seed=117/stream_energy_per_pulse=1.0/stream_frequency=10000.0/stream_jitter=0.02/stream_window=32.0/subArray=32/t=0.0/target=0.0/v=0.0/vari=0.0/wl_activate=8/wl_error=8/wl_grad=8/wl_weight=8
+lr: 0.01
+decreasing_lr: 140,180
+wl_weight: 8
+wl_grad: 8
+wl_activate: 8
+wl_error: 8
+inference: 1
+subArray: 32
+parallelRead: 32
+ADCprecision: 5
+cellBit: 1
+onoffratio: 10.0
+vari: 0.0
+t: 0.0
+v: 0.0
+detect: 0
+target: 0.0
+stream_frequency: 10000.0
+stream_window: 32.0
+stream_jitter: 0.02
+stream_energy_per_pulse: 1.0
+========================================
+/home/liangtaodai/dailt_workplace/NeuroSim/DNN_NeuroSim_V1.4/Inference_pytorch/log/default/ADCprecision=5/batch_size=200/cellBit=1/dataset=mnist/decreasing_lr=140,180/detect=0/grad_scale=8/inference=1/lr=0.01/mode=ASYNC/model=StreamCNN/onoffratio=10.0/parallelRead=32/seed=117/stream_energy_per_pulse=1.0/stream_frequency=10000.0/stream_jitter=0.02/stream_window=32.0/subArray=32/t=0.0/target=0.0/v=0.0/vari=0.0/wl_activate=8/wl_error=8/wl_grad=8/wl_weight=8
+Building MNIST data loader with 1 workers
+Test set: Average loss: 0.0472, Accuracy: 9852/10000 (99%)
+User assigned speed-up degree is larger than the upper bound (where no idle period during the whole process) 
+The speed-up degree is auto-assigned as the upper bound (where no idle period during the whole process) 
+------------------------------ FloorPlan --------------------------------
+
+Tile and PE size are optimized to maximize memory utilization ( = memory mapped by synapse / total memory on chip)
+
+Desired Conventional Mapped Tile Storage Size: 256x256
+Desired Conventional PE Storage Size: 128x128
+Desired Novel Mapped Tile Storage Size: 9x128x128
+User-defined SubArray Size: 32x128
+
+----------------- # of tile used for each layer -----------------
+layer1: 1
+layer2: 1
+layer3: 4
+layer4: 1
+
+----------------- Speed-up of each layer ------------------
+layer1: 16
+layer2: 4
+layer3: 1
+layer4: 8
+
+----------------- Utilization of each layer ------------------
+layer1: 0.140625
+layer2: 0.25
+layer3: 0.78125
+layer4: 0.625
+Memory Utilization of Whole Chip: 59.1518 % 
+
+---------------------------- FloorPlan Done ------------------------------
+
+
+
+clkPeriod: 1.97764e-07
+-------------------------------------- Hardware Performance --------------------------------------
+-------------------- Estimation of Layer 1 ----------------------
+layer1's readLatency is: 1.80541e+06ns
+layer1's readDynamicEnergy is: 47483.1pJ
+layer1's leakagePower is: 0.214467uW
+layer1's leakageEnergy is: 387.199pJ
+layer1's buffer latency is: 770282ns
+layer1's buffer readDynamicEnergy is: 405.087pJ
+layer1's ic latency is: 163756ns
+layer1's ic readDynamicEnergy is: 2247.8pJ
+
+************************ Breakdown of Latency and Dynamic Energy *************************
+
+----------- ADC (or S/As and precharger for SRAM) readLatency is : 829070ns
+----------- Accumulation Circuits (subarray level: adders, shiftAdds; PE/Tile/Global level: accumulation units) readLatency is : 0ns
+----------- Other Peripheries (e.g. decoders, mux, switchmatrix, buffers, IC, pooling and activation units) readLatency is : 976337ns
+----------- ADC (or S/As and precharger for SRAM) readDynamicEnergy is : 28714.5pJ
+----------- Accumulation Circuits (subarray level: adders, shiftAdds; PE/Tile/Global level: accumulation units) readDynamicEnergy is : 13270.7pJ
+----------- Other Peripheries (e.g. decoders, mux, switchmatrix, buffers, IC, pooling and activation units) readDynamicEnergy is : 5497.81pJ
+----------- Async Stream Event Rate : 0.964037
+----------- Async Stream Duty Cycle : 0.493261
+----------- Async Stream Frequency : 9820.18 Hz
+----------- Async Stream ENOB : 12 bit
+----------- Async Stream Pulse Budget : 302945
+----------- Async Stream ADC latency/energy scale : 1.55038 / 1.04567
+----------- Async Stream Accum latency/energy scale : 1.27662 / 1.17411
+----------- Async Stream Buffer latency/energy scale : 0.96 / 0.955531
+----------- Async Stream IC latency/energy scale : 0.993896 / 0.808772
+----------- Async Stream Leakage scale : 1
+
+************************ Breakdown of Latency and Dynamic Energy *************************
+
+-------------------- Estimation of Layer 2 ----------------------
+layer2's readLatency is: 1.14645e+06ns
+layer2's readDynamicEnergy is: 61200.6pJ
+layer2's leakagePower is: 2.5142uW
+layer2's leakageEnergy is: 4539.16pJ
+layer2's buffer latency is: 166779ns
+layer2's buffer readDynamicEnergy is: 158.603pJ
+layer2's ic latency is: 19192.7ns
+layer2's ic readDynamicEnergy is: 590.62pJ
+
+************************ Breakdown of Latency and Dynamic Energy *************************
+
+----------- ADC (or S/As and precharger for SRAM) readLatency is : 943323ns
+----------- Accumulation Circuits (subarray level: adders, shiftAdds; PE/Tile/Global level: accumulation units) readLatency is : 21838.9ns
+----------- Other Peripheries (e.g. decoders, mux, switchmatrix, buffers, IC, pooling and activation units) readLatency is : 181291ns
+----------- ADC (or S/As and precharger for SRAM) readDynamicEnergy is : 48849.1pJ
+----------- Accumulation Circuits (subarray level: adders, shiftAdds; PE/Tile/Global level: accumulation units) readDynamicEnergy is : 10671.1pJ
+----------- Other Peripheries (e.g. decoders, mux, switchmatrix, buffers, IC, pooling and activation units) readDynamicEnergy is : 1680.33pJ
+----------- Async Stream Event Rate : 0.163358
+----------- Async Stream Duty Cycle : 0.55375
+----------- Async Stream Frequency : 5948.64 Hz
+----------- Async Stream ENOB : 11.1036 bit
+----------- Async Stream Pulse Budget : 31096.2
+----------- Async Stream ADC latency/energy scale : 2.46382 / 0.639899
+----------- Async Stream Accum latency/energy scale : 0.730112 / 0.575297
+----------- Async Stream Buffer latency/energy scale : 0.938722 / 0.221598
+----------- Async Stream IC latency/energy scale : 0.743429 / 0.170378
+----------- Async Stream Leakage scale : 1
+
+************************ Breakdown of Latency and Dynamic Energy *************************
+
+-------------------- Estimation of Layer 3 ----------------------
+layer3's readLatency is: 45489.9ns
+layer3's readDynamicEnergy is: 4989.21pJ
+layer3's leakagePower is: 8.61304uW
+layer3's leakageEnergy is: 15550pJ
+layer3's buffer latency is: 15378.1ns
+layer3's buffer readDynamicEnergy is: 10.9897pJ
+layer3's ic latency is: 2724.82ns
+layer3's ic readDynamicEnergy is: 45.4113pJ
+
+************************ Breakdown of Latency and Dynamic Energy *************************
+
+----------- ADC (or S/As and precharger for SRAM) readLatency is : 27297.9ns
+----------- Accumulation Circuits (subarray level: adders, shiftAdds; PE/Tile/Global level: accumulation units) readLatency is : 544.46ns
+----------- Other Peripheries (e.g. decoders, mux, switchmatrix, buffers, IC, pooling and activation units) readLatency is : 17647.6ns
+----------- ADC (or S/As and precharger for SRAM) readDynamicEnergy is : 4114.74pJ
+----------- Accumulation Circuits (subarray level: adders, shiftAdds; PE/Tile/Global level: accumulation units) readDynamicEnergy is : 701.519pJ
+----------- Other Peripheries (e.g. decoders, mux, switchmatrix, buffers, IC, pooling and activation units) readDynamicEnergy is : 172.948pJ
+----------- Async Stream Event Rate : 0.411838
+----------- Async Stream Duty Cycle : 0.578185
+----------- Async Stream Frequency : 7059.19 Hz
+----------- Async Stream ENOB : 12 bit
+----------- Async Stream Pulse Budget : 93031.6
+----------- Async Stream ADC latency/energy scale : 2.15676 / 0.806706
+----------- Async Stream Accum latency/energy scale : 0.917694 / 0.776523
+----------- Async Stream Buffer latency/energy scale : 0.96 / 0.394523
+----------- Async Stream IC latency/energy scale : 0.861135 / 0.326465
+----------- Async Stream Leakage scale : 1
+
+************************ Breakdown of Latency and Dynamic Energy *************************
+
+-------------------- Estimation of Layer 4 ----------------------
+layer4's readLatency is: 7817.44ns
+layer4's readDynamicEnergy is: 135.413pJ
+layer4's leakagePower is: 2.55398uW
+layer4's leakageEnergy is: 4610.98pJ
+layer4's buffer latency is: 3441.09ns
+layer4's buffer readDynamicEnergy is: 0.667767pJ
+layer4's ic latency is: 830.813ns
+layer4's ic readDynamicEnergy is: 3.635pJ
+
+************************ Breakdown of Latency and Dynamic Energy *************************
+
+----------- ADC (or S/As and precharger for SRAM) readLatency is : 3486.62ns
+----------- Accumulation Circuits (subarray level: adders, shiftAdds; PE/Tile/Global level: accumulation units) readLatency is : 22.2019ns
+----------- Other Peripheries (e.g. decoders, mux, switchmatrix, buffers, IC, pooling and activation units) readLatency is : 4308.62ns
+----------- ADC (or S/As and precharger for SRAM) readDynamicEnergy is : 100.11pJ
+----------- Accumulation Circuits (subarray level: adders, shiftAdds; PE/Tile/Global level: accumulation units) readDynamicEnergy is : 26.3243pJ
+----------- Other Peripheries (e.g. decoders, mux, switchmatrix, buffers, IC, pooling and activation units) readDynamicEnergy is : 8.97881pJ
+----------- Async Stream Event Rate : 0.381719
+----------- Async Stream Duty Cycle : 0.575024
+----------- Async Stream Frequency : 6908.59 Hz
+----------- Async Stream ENOB : 12 bit
+----------- Async Stream Pulse Budget : 84388.5
+----------- Async Stream ADC latency/energy scale : 2.20378 / 0.787491
+----------- Async Stream Accum latency/energy scale : 0.898117 / 0.754838
+----------- Async Stream Buffer latency/energy scale : 0.96 / 0.3705
+----------- Async Stream IC latency/energy scale : 0.850842 / 0.30463
+----------- Async Stream Leakage scale : 1
+
+************************ Breakdown of Latency and Dynamic Energy *************************
+
+------------------------------ Summary --------------------------------
+
+ChipArea : 1.18632e+06um^2
+Chip total CIM array : 73271.9um^2
+Total IC Area on chip (Global and Tile/PE local): 541381um^2
+Total ADC (or S/As and precharger for SRAM) Area on chip : 165997um^2
+Total Accumulation Circuits (subarray level: adders, shiftAdds; PE/Tile/Global level: accumulation units) on chip : 208503um^2
+Other Peripheries (e.g. decoders, mux, switchmatrix, buffers, pooling and activation units) : 153653um^2
+
+Chip clock period is: 197.764ns
+Chip pipeline-system-clock-cycle (per image) is: 1.80541e+06ns
+Chip pipeline-system readDynamicEnergy (per image) is: 113808pJ
+Chip pipeline-system leakage Energy (per image) is: 25087.4pJ
+Chip pipeline-system leakage Power (per image) is: 13.8957uW
+Chip pipeline-system buffer readLatency (per image) is: 770282ns
+Chip pipeline-system buffer readDynamicEnergy (per image) is: 575.347pJ
+Chip pipeline-system ic readLatency (per image) is: 163756ns
+Chip pipeline-system ic readDynamicEnergy (per image) is: 2887.47pJ
+
+************************ Breakdown of Latency and Dynamic Energy *************************
+
+----------- ADC (or S/As and precharger for SRAM) readLatency is : 943323ns
+----------- Accumulation Circuits (subarray level: adders, shiftAdds; PE/Tile/Global level: accumulation units) readLatency is : 21838.9ns
+----------- Other Peripheries (e.g. decoders, mux, switchmatrix, buffers, IC, pooling and activation units) readLatency is : 976337ns
+----------- ADC (or S/As and precharger for SRAM) readDynamicEnergy is : 81778.5pJ
+----------- Accumulation Circuits (subarray level: adders, shiftAdds; PE/Tile/Global level: accumulation units) readDynamicEnergy is : 24669.7pJ
+----------- Other Peripheries (e.g. decoders, mux, switchmatrix, buffers, IC, pooling and activation units) readDynamicEnergy is : 7360.06pJ
+
+************************ Breakdown of Latency and Dynamic Energy *************************
+
+
+----------------------------- Performance -------------------------------
+Energy Efficiency TOPS/W (Pipelined Process): 3.27379
+Throughput TOPS (Pipelined Process): 0.000307273
+Throughput FPS (Pipelined Process): 553.892
+Compute efficiency TOPS/mm^2 (Pipelined Process): 0.000259012
+-------------------------------------- Hardware Performance Done --------------------------------------
+
+------------------------------ Simulation Performance --------------------------------
+Total Run-time of NeuroSim: 0 seconds
+------------------------------ Simulation Performance --------------------------------
+quantize layer  Conv0_
+quantize layer  Conv1_
+quantize layer  FC0_
+quantize layer  FC1_
+ --- Hardware Properties --- 
+subArray size: 
+32
+parallel read: 
+32
+ADC precision: 
+5
+cell precision: 
+1
+on/off ratio: 
+10.0
+variation: 
+0.0
