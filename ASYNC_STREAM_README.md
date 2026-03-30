@@ -1,6 +1,15 @@
 # Async Stream NeuroSim Prototype
 
-This document summarizes the lightweight asynchronous stream-based CIM prototype added on top of the original `DNN+NeuroSim V1.4` flow.
+This document describes a lightweight asynchronous stream-based CIM extension built on top of the original `DNN+NeuroSim V1.4` flow.
+
+The objective of this prototype is simple:
+
+- keep the original NeuroSim hardware estimation path intact
+- add a clean async-stream frontend for simple CNN inference
+- export per-layer stream statistics
+- rescale hardware metrics in the C++ backend using stream-aware factors
+
+This is intended for early-stage architecture exploration, not signoff-level circuit verification.
 
 ## What Was Added
 
@@ -17,7 +26,7 @@ The goal is to support early exploration of event-driven / asynchronous stream-b
 
 ## Main Idea
 
-The implementation keeps the original NeuroSim hardware estimation flow and extends it with per-layer stream statistics.
+The implementation preserves the original NeuroSim hardware estimation flow and augments it with per-layer stream statistics.
 
 At a high level:
 
@@ -41,6 +50,21 @@ At a high level:
    - leakage
 
 This makes the prototype stream-aware while preserving the original directory structure and most of the original code path.
+
+## What This Prototype Can Do
+
+The current prototype can:
+
+- run a simple `MNIST` CNN (`StreamCNN`)
+- estimate per-layer async stream behavior
+- export `weight`, `input`, and `metadata` traces
+- feed those traces into the original NeuroSim C++ backend
+- report stream-aware hardware changes at the module level:
+  - ADC / sensing
+  - accumulation
+  - buffer
+  - interconnect
+  - leakage
 
 ## Files Added
 
@@ -90,14 +114,30 @@ The following options are available in `inference.py`:
 - `--stream_energy_per_pulse`
   - Relative pulse energy scaling factor.
 
-## How To Run
+## Example Workflow
 
-Example:
+### 1. Train the simple CNN
 
 ```bash
 cd Inference_pytorch
+python train_streamcnn.py --epochs 10 --batch_size 128 --lr 1e-3
+```
+
+### 2. Run async inference and hardware estimation
+
+```bash
 python inference.py --dataset mnist --model StreamCNN --mode ASYNC --inference 1 --stream_frequency 1e4 --stream_window 32 --stream_jitter 0.02
 ```
+
+### 3. Inspect outputs
+
+Useful outputs include:
+
+- software inference accuracy
+- per-layer stream statistics
+- per-layer latency / energy breakdown
+- chip-level summary
+- energy efficiency and throughput
 
 ## How To Train StreamCNN
 
@@ -116,15 +156,48 @@ Inference_pytorch/log/StreamCNN_mnist.pth
 
 The inference path already looks for this checkpoint automatically when `--model StreamCNN` is selected.
 
-## Recommended Workflow
+## Reference Result
 
-1. Train the simple CNN on `MNIST`
-2. Run async inference with `--mode ASYNC`
-3. Inspect:
-   - test accuracy
-   - per-layer stream statistics
-   - per-layer circuit scaling
-   - chip-level latency / energy / throughput
+The following reference result was obtained after training `StreamCNN` on `MNIST` and running:
+
+```bash
+python inference.py --dataset mnist --model StreamCNN --mode ASYNC --inference 1 --stream_frequency 1e4 --stream_window 32 --stream_jitter 0.02
+```
+
+### Software accuracy
+
+- Test accuracy: `9852 / 10000 (99%)`
+- Test loss: `0.0472`
+
+### Chip-level hardware summary
+
+- `Chip clock period`: `197.764 ns`
+- `Chip pipeline-system-clock-cycle (per image)`: `1.80541e+06 ns`
+- `Chip pipeline-system readDynamicEnergy (per image)`: `113808 pJ`
+- `Chip pipeline-system leakage Energy (per image)`: `25087.4 pJ`
+- `Chip pipeline-system leakage Power`: `13.8957 uW`
+- `Energy Efficiency`: `3.27379 TOPS/W`
+- `Throughput`: `553.892 FPS`
+
+### Example per-layer async stream behavior
+
+| Layer | Event Rate | Frequency (Hz) | ENOB (bit) | ADC Lat/Energy Scale | Accum Lat/Energy Scale |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Layer 1 | 0.964037 | 9820.18 | 12.0000 | 1.55038 / 1.04567 | 1.27662 / 1.17411 |
+| Layer 2 | 0.163358 | 5948.64 | 11.1036 | 2.46382 / 0.63990 | 0.73011 / 0.57530 |
+| Layer 3 | 0.411838 | 7059.19 | 12.0000 | 2.15676 / 0.80671 | 0.91769 / 0.77652 |
+| Layer 4 | 0.381719 | 6908.59 | 12.0000 | 2.20378 / 0.78749 | 0.89812 / 0.75484 |
+
+### Interpretation of the reference result
+
+- The first layer has very high event activity because it directly observes the input image.
+- Later layers exhibit lower effective frequency and lower event density.
+- ADC remains the dominant energy consumer in the current prototype.
+- The prototype already captures a useful async trade-off:
+  - lower event activity can reduce dynamic energy
+  - lower event activity can also increase the time needed to accumulate enough evidence
+
+These values should be treated as architecture-exploration results rather than final circuit signoff numbers.
 
 ## Output Artifacts
 
@@ -148,6 +221,15 @@ The current version models circuit performance changes at the module level:
 - `leakage_scale`
 
 These factors are derived from stream statistics and applied in `NeuroSIM/main.cpp` after the original NeuroSim layer performance is computed.
+
+The current implementation follows this pattern:
+
+1. compute stream statistics in Python
+2. export per-layer metadata
+3. run the original NeuroSim hardware estimation
+4. rescale module-level latency and energy terms in C++
+
+This keeps the implementation compact while still exposing meaningful circuit-level trends.
 
 ## How To Read The Async Log
 
@@ -188,7 +270,7 @@ A good async run usually means:
 3. Per-layer hardware breakdown is printed
 4. Chip-level summary is produced without crashing
 
-For example, after training `StreamCNN`, a run with ~99% MNIST accuracy indicates:
+For example, after training `StreamCNN`, a run with ~99% `MNIST` accuracy indicates:
 
 - the model weights are valid
 - the async-stream path is active
@@ -266,6 +348,16 @@ Useful next experiments include:
 - The C++ backend still uses the original NeuroSim physical model as the base and applies stream-aware scaling on top.
 - This prototype is suitable for rapid architecture exploration, not final silicon signoff.
 - During training, async layers fall back to standard differentiable CNN execution. Stream-aware effects are applied during inference-time hardware evaluation.
+
+## Current Limitations
+
+The current prototype intentionally keeps the implementation simple:
+
+- only `StreamCNN` is supported in `ASYNC` mode
+- the stream model is first-order and behavioral
+- the backend still starts from the original NeuroSim physical model
+- module-level async scaling is applied after base hardware estimation
+- absolute numbers are useful, but relative comparisons are more reliable at this stage
 
 ## Suggested Next Steps
 
